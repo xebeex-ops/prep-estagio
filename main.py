@@ -1,40 +1,39 @@
-from google import genai
 import os
-from google.genai import types
 from dotenv import load_dotenv
-import time
+from google import genai
+from google.genai import types
+from pydantic import BaseModel, Field
+
 load_dotenv()
-client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 
-config = types.GenerateContentConfig(
-    temperature =0.2,
-    max_output_tokens=300,
-    system_instruction=(
-        "És um arquiteto de software sénior focado em backend. "
-        "Responde sempre de forma estritamente técnica, em tópicos diretos e sem saudações."
-    ),
+class AnaliseIncidente(BaseModel):
+    servico: str = Field(description='Nome do servico afetado')
+    gravidade: str = Field(description = 'Nivel: Baixo, Medio, Alto, Critico')
+    cpu_percent: float = Field(description = 'Percentagem de CPU registada')
+    memoria_mb: int = Field(description = 'Consumo de memoria em MB')
+    diagnostico: str = Field(description = 'Causa tecnica do problema')
 
+client = genai.Client(api_key=os.getenv('GEMINI_API_KEY')) #chamar api
+
+config = types.GenerateContentConfig(  
+    temperature = 0.1,  #mais rigor
+    response_mime_type='application/json',
+    response_schema=AnaliseIncidente #Passa a classe Pydabtic como contrato
 )
 
-prompt = "Sugere 3 nomes para um serviço de backend que processa pedidos de IA em lote."
+log_bruto = """
+[2026-10-11 16:05:22] CRITICAL cluster-auth-service: Out of memory killer invoked.
+CPU consumption reached 96.8% during token verification process. 
+Memory usage peaked at 8192MB before the container crashed.
+"""
 
-response = client.models.generate_content_stream(
-    model = 'gemini-flash-lite-latest',
-    contents =prompt,
+prompt = f"Analisa este log de servidor e extrai a informação necessária:\n{log_bruto}"
+
+response = client.models.generate_content(
+    model='gemini-3.8-flash',
+    contents=prompt,
     config=config,
-
-
 )
-ttft = None
-start_time = time.time()
 
-for chunk in response:
-    if ttft is None:
-        ttft = time.time() - start_time
-    print(chunk.text, end='', flush=True)
-    
-total_time = time.time() - start_time
-
-print("\n" + "=" * 50)
-print(f"Time to First Token (TTFT) : {ttft:.3f} segundos")
-print(f"Tempo Total de Resposta    : {total_time:.3f} segundos")
+print("Texto bruto devolvido pela Google:")
+print(response.text)
