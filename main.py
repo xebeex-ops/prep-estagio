@@ -30,7 +30,7 @@ Memory usage peaked at 8192MB before the container crashed.
 prompt = f"Analisa este log de servidor e extrai a informação necessária:\n{log_bruto}"
 
 response = client.models.generate_content(
-    model='gemini-3.8-flash',
+    model='gemini-3.5-flash-lite',
     contents=prompt,
     config=config,
 )
